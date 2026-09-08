@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NTT Label Goblin</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;background:#f3f4f6;color:#111827}
+header{background:#111827;color:white;padding:18px}main{max-width:700px;margin:auto;padding:16px 16px 80px}
+input,select,textarea,button{font:inherit;padding:12px;border-radius:10px;border:1px solid #d1d5db}
+input,select,textarea{width:100%;box-sizing:border-box;margin:6px 0 12px;background:white}
+button{background:#111827;color:white;border:0;margin:4px}.secondary{background:#e5e7eb;color:#111827}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card,.label{background:white;padding:16px;border-radius:14px;margin:10px 0;border:1px solid #e5e7eb}
+.card{min-height:70px}.card b{display:block;margin-bottom:6px}.muted{color:#6b7280;font-size:13px}.qty{float:right;font-size:22px;font-weight:700}
+nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #ddd;padding:8px;text-align:center}
+h1{margin:0;font-size:22px}.field label{font-size:13px;font-weight:600}
+</style></head><body>
+<header><h1>👹 NTT Label Goblin</h1><small>Field label inventory</small></header>
+<main id="app"></main>
+<nav><button onclick="home()">Home</button><button onclick="allLabels()">Labels</button><button onclick="add()">+ Add</button><button onclick="admin()">Admin</button></nav>
+<script>
+const K='ntt-label-goblin-data';let d=JSON.parse(localStorage.getItem(K)||'null')||{categories:['Equipment','Panel','Conduit','Arc Flash','Safety','Micarda','Other'],buildings:['Building 1','Building 2'],labels:[]};
+const save=()=>localStorage.setItem(K,JSON.stringify(d)),A=document.getElementById('app');
+function esc(s){return String(s||'').replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]))}
+function home(){A.innerHTML='<input id="q" placeholder="🔎 Search labels..." oninput="search(this.value)"><div class="grid"><div class="card" onclick="allLabels()"><b>🏷️ All Labels</b><span class="muted">'+d.labels.length+' labels</span></div><div class="card" onclick="ordering()"><b>⚠️ Needs Ordering</b><span class="muted">'+d.labels.filter(x=>x.reorder&&x.qty<=x.threshold).length+' labels</span></div>'+d.buildings.map((b,i)=>'<div class="card" onclick="building('+i+')"><b>🏢 '+esc(b)+'</b><span class="muted">'+d.labels.filter(x=>x.building===b).length+' labels</span></div>').join('')+'</div>'}
+function card(x){return '<div class="label"><span class="qty">'+x.qty+'</span><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.category)+' • '+esc(x.building)+(x.area?' • '+esc(x.area):'')+'</div><div class="muted">'+(x.reorder?'Reorder at ≤ '+x.threshold:'No automatic reorder')+(x.notes?' • '+esc(x.notes):'')+'</div><button onclick="change(\''+x.id+'\',-1)">Use −1</button><button class="secondary" onclick="change(\''+x.id+'\',1)">Add +1</button><button class="secondary" onclick="give(\''+x.id+'\')">Given To</button><button class="secondary" onclick="edit(\''+x.id+'\')">Edit</button></div>'}
+function allLabels(a=d.labels,t='All Labels'){A.innerHTML='<h2>'+t+'</h2>'+(a.length?a.map(card).join(''):'<p class="muted">No labels yet.</p>')}
+function search(q){q=q.toLowerCase();allLabels(d.labels.filter(x=>(x.name+' '+x.category+' '+x.building+' '+x.area+' '+x.notes).toLowerCase().includes(q)),'Search Results')}
+function ordering(){allLabels(d.labels.filter(x=>x.reorder&&x.qty<=x.threshold),'Needs Ordering')}
+function building(i){let b=d.buildings[i];allLabels(d.labels.filter(x=>x.building===b),b)}
+function add(x){A.innerHTML='<h2>'+(x?'Edit Label':'Add Label')+'</h2><div class="field"><label>Label name *</label><input id="n" value="'+esc(x?.name)+'"></div><div class="field"><label>Category</label><select id="c">'+d.categories.map(c=>'<option '+(c===x?.category?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></div><div class="field"><label>Building</label><select id="b">'+d.buildings.map(b=>'<option '+(b===x?.building?'selected':'')+'>'+esc(b)+'</option>').join('')+'</select></div><div class="field"><label>Area / Phase</label><input id="a" placeholder="e.g. 1.1" value="'+esc(x?.area)+'"></div><div class="field"><label>Quantity</label><input id="qty" type="number" min="0" value="'+(x?.qty??0)+'"></div><div class="field"><label>Reorder this label?</label><select id="r"><option value="no" '+(!x?.reorder?'selected':'')+'>No</option><option value="yes" '+(x?.reorder?'selected':'')+'>Yes</option></select></div><div class="field"><label>Reorder threshold</label><input id="th" type="number" min="0" value="'+(x?.threshold??0)+'"></div><div class="field"><label>Notes</label><textarea id="notes">'+esc(x?.notes)+'</textarea></div><button onclick="saveLabel(\''+(x?.id||'')+'\')">'+(x?'Save Changes':'Add Label')+'</button>'}
+function saveLabel(id){let x=id?d.labels.find(z=>z.id===id):{id:crypto.randomUUID()};x.name=document.getElementById('n').value.trim();if(!x.name)return alert('Enter a label name.');x.category=document.getElementById('c').value;x.building=document.getElementById('b').value;x.area=document.getElementById('a').value.trim();x.qty=Math.max(0,+document.getElementById('qty').value||0);x.reorder=document.getElementById('r').value==='yes';x.threshold=Math.max(0,+document.getElementById('th').value||0);x.notes=document.getElementById('notes').value.trim();if(!id)d.labels.push(x);save();home()}
+function edit(id){add(d.labels.find(x=>x.id===id))}
+function change(id,n){let x=d.labels.find(z=>z.id===id);if(n<0&&x.qty<1)return alert('Quantity is already 0.');x.qty+=n;save();allLabels()}
+function give(id){let x=d.labels.find(z=>z.id===id),p=prompt('Given to (person):');if(!p)return;let n=Math.max(1,+prompt('Quantity given:','1')||1);if(n>x.qty)return alert('Not enough quantity.');x.qty-=n;x.history=x.history||[];x.history.push({person:p,qty:n,time:new Date().toISOString()});save();allLabels()}
+function admin(){A.innerHTML='<h2>Admin</h2><p class="muted">Version 1 prototype. Categories and buildings can be customized here.</p><h3>Categories</h3>'+d.categories.map((c,i)=>'<div class="card">'+esc(c)+' <button onclick="rmCat('+i+')">Remove</button></div>').join('')+'<button onclick="cat()">+ Add Category</button><h3>Buildings</h3>'+d.buildings.map((b,i)=>'<div class="card">'+esc(b)+' <button onclick="renameB('+i+')">Rename</button></div>').join('')+'<button onclick="newB()">+ Add Building</button>'}
+function cat(){let c=prompt('New category:');if(c&&!d.categories.includes(c)){d.categories.push(c);save();admin()}}
+function rmCat(i){if(confirm('Remove this category?')){d.categories.splice(i,1);save();admin()}}
+function renameB(i){let b=prompt('Building name:',d.buildings[i]);if(b){let old=d.buildings[i];d.buildings[i]=b;d.labels.forEach(x=>{if(x.building===old)x.building=b});save();admin()}}
+function newB(){let b=prompt('New building:');if(b&&!d.buildings.includes(b)){d.buildings.push(b);save();admin()}}
+home();
+</script></body></html>
